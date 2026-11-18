@@ -1,0 +1,6 @@
+{
+  "name": "RelateFlow - Relationship & Inquiry Portal",
+  "description": "Centralized company relationship, contact history, inquiry tracking, and multi-stage follow-up management portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

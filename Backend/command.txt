@@ -1,0 +1,146 @@
+# ==========================================
+# QtechCRM BACKEND - COMMAND CHEAT SHEET
+# ==========================================
+
+# ------------------------------------------
+# 0. SENSITIVE CREDENTIALS & PRODUCTION SETUP
+# ------------------------------------------
+
+# 1. Copy .env.example to .env:
+#    cp .env.example .env
+
+# 2. Generate a secure random 32-byte SECRET_KEY for production:
+#    Using Python:
+#    python -c "import secrets; print(secrets.token_hex(32))"
+#    Using OpenSSL:
+#    openssl rand -hex 32
+
+# 3. Paste the generated key into .env under SECRET_KEY.
+# 4. Set secure database credentials and correct CORS_ORIGINS.
+
+
+# ------------------------------------------
+# 1. DOCKER COMPOSE - DEVELOPMENT MODE (Group: 'qtech-crm')
+# ------------------------------------------
+
+# If upgrading from old 'backend' group in Docker Desktop:
+# Stop and remove old containers first:
+# docker stop qtech_crm_backend qtech_crm_db
+# docker rm qtech_crm_backend qtech_crm_db
+
+# Build and start all services in the background under 'qtech-crm' group:
+docker compose up -d --build
+
+# Check status of running containers
+docker compose ps
+
+# View live logs for all services
+docker compose logs -f
+
+# View live logs for backend app only
+docker compose logs -f app
+
+# View live logs for database only
+docker compose logs -f db
+
+# Stop containers (database volume is safely preserved)
+docker compose down
+
+# Stop containers AND delete database volume (fresh database reset)
+docker compose down -v
+
+
+# ------------------------------------------
+# 2. DOCKER COMPOSE - PRODUCTION MODE
+# ------------------------------------------
+
+# Build and start production stack (multi-worker uvicorn, log rotation, no hot-reload)
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Check production container status & health checks
+docker compose -f docker-compose.prod.yml ps
+
+# View production logs
+docker compose -f docker-compose.prod.yml logs -f app
+
+# Stop production containers
+docker compose -f docker-compose.prod.yml down
+
+
+# ------------------------------------------
+# 3. ALEMBIC MIGRATIONS VIA DOCKER (IMPORTANT: ALWAYS USE CLI COMMANDS)
+# ------------------------------------------
+
+# NOTE: Containers must be running before running 'docker compose exec'.
+# Standard 3-Step Migration Workflow:
+# Step 1: Ensure containers are running in the background
+docker compose up -d
+
+# Step 2: Autogenerate migration script based on models
+docker compose exec app alembic revision --autogenerate -m "create_crm_table"
+
+# Step 3: Apply the migration to the PostgreSQL database
+docker compose exec app alembic upgrade head
+
+
+# Alternative: Run migrations without starting containers in background (run --rm):
+# docker compose run --rm app alembic revision --autogenerate -m "create_crm_table"
+# docker compose run --rm app alembic upgrade head
+
+# Rollback the last migration (-1 step):
+docker compose exec app alembic downgrade -1
+
+# Rollback ALL migrations back to the beginning (clean database state):
+docker compose exec app alembic downgrade base
+
+# Check current migration version in database:
+docker compose exec app alembic current
+
+# View migration history:
+docker compose exec app alembic history --verbose
+
+# Access interactive shell inside the app container:
+docker compose exec app sh
+
+
+# ------------------------------------------
+# 4. LOCAL ENVIRONMENT (WITHOUT DOCKER)
+# ------------------------------------------
+
+# Install dependencies locally
+pip install -r requirements.txt
+
+# Run FastAPI application locally with hot-reload
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run FastAPI application in production mode with 4 workers
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Autogenerate migration script based on models (CLI)
+alembic revision --autogenerate -m "describe_your_changes"
+
+# Apply pending migrations locally
+alembic upgrade head
+
+# Rollback last migration locally (-1 step)
+alembic downgrade -1
+
+# Rollback ALL migrations locally back to base
+alembic downgrade base
+
+# Show migration history
+alembic history --verbose
+
+# Show current migration status
+alembic current
+
+
+# ------------------------------------------
+# 5. HEALTH & READINESS PROBE CHECKS
+# ------------------------------------------
+
+# Liveness probe (checks server is responding):
+curl http://localhost:8000/health
+
+# Readiness probe (verifies database connection pool is alive):
+curl http://localhost:8000/ready

@@ -1,0 +1,41 @@
+name: qtech-crm
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: qtech_crm_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-qtech_crm_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - qtech_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-qtech_crm_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: qtech_crm_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - POSTGRES_SERVER=db
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-qtech_crm_db}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  qtech_pgdata:
