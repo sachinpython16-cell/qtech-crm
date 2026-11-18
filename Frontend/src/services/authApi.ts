@@ -7,7 +7,7 @@ import {
 } from '../types/auth';
 
 const API_BASE_URL =
-  (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000/api/v1';
+  (import.meta.env.VITE_API_URL as string) || '/api/v1';
 
 const TOKEN_KEYS = {
   ACCESS: 'qtech_crm_access_token',

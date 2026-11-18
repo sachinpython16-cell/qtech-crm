@@ -3,7 +3,8 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    STATIC_DIR=/app/static
 
 # Set working directory
 WORKDIR /app
@@ -24,7 +25,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 RUN groupadd -g 1001 appuser && \
     useradd -u 1001 -g appuser -s /bin/sh -m appuser
 
-# Copy source code and set ownership
+# Copy source code (including static frontend build) and set ownership
 COPY --chown=appuser:appuser . .
 
 # Ensure start.sh has executable permissions and Unix line endings
@@ -33,7 +34,7 @@ RUN chmod +x /app/start.sh
 # Switch to non-root user
 USER appuser
 
-# Expose FastAPI port
+# Expose internal FastAPI port
 EXPOSE 8000
 
 # Health check to ensure the application is responsive

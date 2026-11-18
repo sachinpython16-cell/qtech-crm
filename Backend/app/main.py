@@ -1,9 +1,12 @@
 from contextlib import asynccontextmanager
 import logging
+import os
+from typing import Optional
 import uvicorn
 from fastapi import FastAPI, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -20,6 +23,23 @@ from app.dashboard.routers import router as dashboard_router
 logger = logging.getLogger("uvicorn.error")
 
 
+def resolve_frontend_static_dir() -> Optional[str]:
+    """Resolves the directory containing the compiled frontend static files."""
+    candidates = [
+        os.getenv("STATIC_DIR"),
+        "/frontend_dist",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "..", "Frontend", "dist"),
+    ]
+    for path in candidates:
+        if path and os.path.exists(path) and os.path.isdir(path):
+            return os.path.abspath(path)
+    return None
+
+
+FRONTEND_STATIC_DIR = resolve_frontend_static_dir()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -28,6 +48,11 @@ async def lifespan(app: FastAPI):
     """
     # Startup
     logger.info(f"Starting {settings.PROJECT_NAME} in [{settings.ENVIRONMENT.upper()}] mode...")
+    if FRONTEND_STATIC_DIR:
+        logger.info(f"Serving Frontend static assets from: {FRONTEND_STATIC_DIR}")
+    else:
+        logger.warning("No Frontend static files directory found. API-only mode active.")
+
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
@@ -70,6 +95,12 @@ app.include_router(followup_router, prefix="/api/v1")
 app.include_router(interaction_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 
+# Mount static assets directory if available
+if FRONTEND_STATIC_DIR:
+    assets_dir = os.path.join(FRONTEND_STATIC_DIR, "assets")
+    if os.path.exists(assets_dir) and os.path.isdir(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="static_assets")
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -84,17 +115,6 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal server error. Please try again later."},
     )
-
-
-@app.get("/", tags=["Root"])
-def root():
-    return {
-        "message": f"Welcome to {settings.PROJECT_NAME} API",
-        "environment": settings.ENVIRONMENT,
-        "docs": "/docs" if settings.ENABLE_DOCS else "disabled",
-        "health": "/health",
-        "ready": "/ready",
-    }
 
 
 @app.get("/health", tags=["Health"])
@@ -127,6 +147,59 @@ def readiness_check(db: Session = Depends(get_db)):
                 "database": "unreachable",
             },
         )
+
+
+@app.get("/api/info", tags=["Info"])
+def api_info():
+    """API metadata and status endpoint."""
+    return {
+        "message": f"Welcome to {settings.PROJECT_NAME} API",
+        "environment": settings.ENVIRONMENT,
+        "docs": "/docs" if settings.ENABLE_DOCS else "disabled",
+        "health": "/health",
+        "ready": "/ready",
+    }
+
+
+# ==============================================================================
+# Single-Port Frontend SPA Catch-All & Static File Serving
+# ==============================================================================
+@app.get("/", include_in_schema=False)
+async def serve_root():
+    """Serves the Frontend SPA index.html on root, or API info fallback."""
+    if FRONTEND_STATIC_DIR:
+        index_file = os.path.join(FRONTEND_STATIC_DIR, "index.html")
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+    return api_info()
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_spa_or_file(full_path: str):
+    """
+    Catch-all router for React SPA client-side routing (HTML5 history mode)
+    and root-level static assets (e.g. favicon, icons).
+    """
+    # Exclude API endpoints, documentation, and probes from the SPA fallback
+    reserved_prefixes = ("api/", "docs", "redoc", "openapi.json", "health", "ready")
+    if any(full_path == prefix or full_path.startswith(prefix) for prefix in reserved_prefixes):
+        return JSONResponse(status_code=404, content={"detail": f"Endpoint /{full_path} not found."})
+
+    if FRONTEND_STATIC_DIR:
+        # Check if requested path is a specific static file (e.g., favicon.svg, manifest.json)
+        target_file = os.path.join(FRONTEND_STATIC_DIR, full_path)
+        if os.path.isfile(target_file):
+            return FileResponse(target_file)
+
+        # Fallback to index.html for React SPA client-side routes (e.g. /companies, /deals)
+        index_file = os.path.join(FRONTEND_STATIC_DIR, "index.html")
+        if os.path.isfile(index_file):
+            return FileResponse(index_file)
+
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "Frontend application build not found. Please build the frontend."},
+    )
 
 
 if __name__ == "__main__":

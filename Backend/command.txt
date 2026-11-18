@@ -20,13 +20,17 @@
 
 
 # ------------------------------------------
-# 1. DOCKER COMPOSE - DEVELOPMENT MODE (Group: 'qtech-crm')
+# 1. DOCKER COMPOSE - SINGLE PORT 80 (Group: 'qtech-crm')
 # ------------------------------------------
-
-# If upgrading from old 'backend' group in Docker Desktop:
-# Stop and remove old containers first:
-# docker stop qtech_crm_backend qtech_crm_db
-# docker rm qtech_crm_backend qtech_crm_db
+# Both Frontend (React SPA) and Backend (FastAPI) run together on Port 80!
+#
+# URL Endpoints:
+# - Web Application UI:    http://localhost
+# - API v1 Base:          http://localhost/api/v1
+# - Swagger Docs:         http://localhost/docs
+# - ReDoc Docs:           http://localhost/redoc
+# - Health Probe:         http://localhost/health
+# - Readiness Probe:      http://localhost/ready
 
 # Build and start all services in the background under 'qtech-crm' group:
 docker compose up -d --build
@@ -48,6 +52,9 @@ docker compose down
 
 # Stop containers AND delete database volume (fresh database reset)
 docker compose down -v
+
+# Sync frontend updates into Backend static folder:
+# (Run inside Frontend folder: 'npm run build:backend')
 
 
 # ------------------------------------------
