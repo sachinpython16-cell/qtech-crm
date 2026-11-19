@@ -82,18 +82,18 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({
 
   // Dedicated Company Profile View
   if (selectedCompany) {
-    const stats = selectedCompany.stats
-      ? {
-          totalProjects: selectedCompany.stats.total_projects,
-          closedProjects: selectedCompany.stats.closed_projects,
-          ongoingProjects: selectedCompany.stats.ongoing_projects,
-          lostProjects: selectedCompany.stats.lost_projects,
-          inquiryCount: selectedCompany.stats.inquiry_count,
-          contactsCount: selectedCompany.stats.contacts_count,
-          pendingFollowUps: selectedCompany.stats.pending_follow_ups,
-          hasWorkedBefore: selectedCompany.stats.has_worked_before,
-        }
-      : getCompanyStatistics(String(selectedCompany.id), deals, contacts, followUps);
+    const liveStats = getCompanyStatistics(String(selectedCompany.id), deals, contacts, followUps);
+    const serverStats = selectedCompany.stats;
+    const stats = {
+      totalProjects: Math.max(liveStats.totalProjects, serverStats?.total_projects ?? 0),
+      closedProjects: Math.max(liveStats.closedProjects, serverStats?.closed_projects ?? 0),
+      ongoingProjects: Math.max(liveStats.ongoingProjects, serverStats?.ongoing_projects ?? 0),
+      lostProjects: Math.max(liveStats.lostProjects, serverStats?.lost_projects ?? 0),
+      inquiryCount: Math.max(liveStats.inquiryCount, serverStats?.inquiry_count ?? 0),
+      contactsCount: Math.max(liveStats.contactsCount, serverStats?.contacts_count ?? 0),
+      pendingFollowUps: Math.max(liveStats.pendingFollowUps, serverStats?.pending_follow_ups ?? 0),
+      hasWorkedBefore: liveStats.hasWorkedBefore || Boolean(serverStats?.has_worked_before),
+    };
     const companyContacts = contacts.filter(c => String(c.companyId) === String(selectedCompany.id));
     const companyDeals = deals.filter(d => String(d.companyId) === String(selectedCompany.id));
     const companyFollowUps = followUps.filter(f => String(f.companyId) === String(selectedCompany.id));
@@ -732,18 +732,18 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({
                 </tr>
               ) : (
                 filteredCompanies.map((company) => {
-                  const stats = company.stats
-                    ? {
-                        totalProjects: company.stats.total_projects,
-                        closedProjects: company.stats.closed_projects,
-                        ongoingProjects: company.stats.ongoing_projects,
-                        lostProjects: company.stats.lost_projects,
-                        inquiryCount: company.stats.inquiry_count,
-                        contactsCount: company.stats.contacts_count,
-                        pendingFollowUps: company.stats.pending_follow_ups,
-                        hasWorkedBefore: company.stats.has_worked_before,
-                      }
-                    : getCompanyStatistics(String(company.id), deals, contacts, followUps);
+                  const liveStats = getCompanyStatistics(String(company.id), deals, contacts, followUps);
+                  const serverStats = company.stats;
+                  const stats = {
+                    totalProjects: Math.max(liveStats.totalProjects, serverStats?.total_projects ?? 0),
+                    closedProjects: Math.max(liveStats.closedProjects, serverStats?.closed_projects ?? 0),
+                    ongoingProjects: Math.max(liveStats.ongoingProjects, serverStats?.ongoing_projects ?? 0),
+                    lostProjects: Math.max(liveStats.lostProjects, serverStats?.lost_projects ?? 0),
+                    inquiryCount: Math.max(liveStats.inquiryCount, serverStats?.inquiry_count ?? 0),
+                    contactsCount: Math.max(liveStats.contactsCount, serverStats?.contacts_count ?? 0),
+                    pendingFollowUps: Math.max(liveStats.pendingFollowUps, serverStats?.pending_follow_ups ?? 0),
+                    hasWorkedBefore: liveStats.hasWorkedBefore || Boolean(serverStats?.has_worked_before),
+                  };
                   const companyContacts = contacts.filter(c => String(c.companyId) === String(company.id));
 
                   const statusBadge =

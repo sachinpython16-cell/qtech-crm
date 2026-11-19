@@ -433,7 +433,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
   initialCompanyId,
   onAddContact,
 }) => {
-  const [companyId, setCompanyId] = useState(initialCompanyId || (companies[0]?.id || ''));
+  const [companyId, setCompanyId] = useState(initialCompanyId || '');
   const [name, setName] = useState('');
   const [designation, setDesignation] = useState('');
   const [email, setEmail] = useState('');
@@ -443,17 +443,30 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync if initialCompanyId changes
+  // Synchronize companyId when modal opens or companies list changes
   React.useEffect(() => {
-    if (initialCompanyId) {
-      setCompanyId(initialCompanyId);
+    if (isOpen) {
+      if (initialCompanyId && companies.some(c => String(c.id) === String(initialCompanyId))) {
+        setCompanyId(String(initialCompanyId));
+      } else if (companies.length > 0) {
+        if (!companyId || !companies.some(c => String(c.id) === String(companyId))) {
+          setCompanyId(String(companies[0].id));
+        }
+      } else {
+        setCompanyId('');
+      }
+      setError('');
     }
-  }, [initialCompanyId]);
+  }, [isOpen, initialCompanyId, companies]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!companyId || !companyId.trim() || Number(companyId) <= 0) {
+      setError('Please select an associated company. Create a company first if none exist.');
+      return;
+    }
     if (!name.trim()) {
       setError('Contact name is required.');
       return;
@@ -477,7 +490,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
 
     try {
       await onAddContact({
-        companyId,
+        companyId: String(companyId),
         name: name.trim(),
         designation: designation.trim() || 'Representative',
         email: email.trim(),
@@ -530,11 +543,15 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               onChange={(e) => setCompanyId(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:outline-none focus:border-[#088395]"
             >
-              {companies.map((comp) => (
-                <option key={comp.id} value={comp.id}>
-                  {comp.name} ({comp.industry})
-                </option>
-              ))}
+              {companies.length === 0 ? (
+                <option value="" disabled>No companies found - please create one first</option>
+              ) : (
+                companies.map((comp) => (
+                  <option key={comp.id} value={comp.id}>
+                    {comp.name} {comp.industry ? `(${comp.industry})` : ''}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
@@ -858,7 +875,7 @@ export const AddDealModal: React.FC<AddDealModalProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<DealType>('Inquiry');
-  const [companyId, setCompanyId] = useState(initialCompanyId || (companies[0]?.id || ''));
+  const [companyId, setCompanyId] = useState(initialCompanyId || '');
   const [contactPersonId, setContactPersonId] = useState(initialContactId || '');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
@@ -868,17 +885,31 @@ export const AddDealModal: React.FC<AddDealModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
-    if (initialCompanyId) setCompanyId(initialCompanyId);
-    if (initialContactId) setContactPersonId(initialContactId);
-  }, [initialCompanyId, initialContactId]);
+    if (isOpen) {
+      if (initialCompanyId && companies.some(c => String(c.id) === String(initialCompanyId))) {
+        setCompanyId(String(initialCompanyId));
+      } else if (companies.length > 0) {
+        if (!companyId || !companies.some(c => String(c.id) === String(companyId))) {
+          setCompanyId(String(companies[0].id));
+        }
+      } else {
+        setCompanyId('');
+      }
+
+      if (initialContactId) {
+        setContactPersonId(String(initialContactId));
+      }
+      setError('');
+    }
+  }, [isOpen, initialCompanyId, initialContactId, companies]);
 
   // Available contacts for selected company
-  const companyContacts = contacts.filter(c => c.companyId === companyId);
+  const companyContacts = contacts.filter(c => String(c.companyId) === String(companyId));
 
   // Set default contact if not set
   React.useEffect(() => {
-    if (companyContacts.length > 0 && (!contactPersonId || !companyContacts.some(c => c.id === contactPersonId))) {
-      setContactPersonId(companyContacts[0].id);
+    if (companyContacts.length > 0 && (!contactPersonId || !companyContacts.some(c => String(c.id) === String(contactPersonId)))) {
+      setContactPersonId(String(companyContacts[0].id));
     }
   }, [companyId, companyContacts, contactPersonId]);
 
@@ -886,6 +917,10 @@ export const AddDealModal: React.FC<AddDealModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!companyId || !companyId.trim() || Number(companyId) <= 0) {
+      setError('Please select an associated company.');
+      return;
+    }
     if (!title.trim()) {
       setError('Title / project topic is required.');
       return;
@@ -1483,7 +1518,7 @@ export const ScheduleFollowUpModal: React.FC<ScheduleFollowUpModalProps> = ({
   initialContactId,
   onScheduleFollowUp,
 }) => {
-  const [selectedDealId, setSelectedDealId] = useState(initialDealId || (deals[0]?.id || ''));
+  const [selectedDealId, setSelectedDealId] = useState(initialDealId || '');
   const [sequence, setSequence] = useState<FollowUpSequence>('First Follow-Up');
   const [channel, setChannel] = useState<any>('Phone Call');
   const [performedBy, setPerformedBy] = useState('Account Lead');
@@ -1493,8 +1528,19 @@ export const ScheduleFollowUpModal: React.FC<ScheduleFollowUpModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
-    if (initialDealId) setSelectedDealId(initialDealId);
-  }, [initialDealId]);
+    if (isOpen) {
+      if (initialDealId && deals.some(d => String(d.id) === String(initialDealId))) {
+        setSelectedDealId(String(initialDealId));
+      } else if (deals.length > 0) {
+        if (!selectedDealId || !deals.some(d => String(d.id) === String(selectedDealId))) {
+          setSelectedDealId(String(deals[0].id));
+        }
+      } else {
+        setSelectedDealId('');
+      }
+      setError('');
+    }
+  }, [isOpen, initialDealId, deals]);
 
   if (!isOpen) return null;
 
@@ -1681,7 +1727,7 @@ export const LogInteractionModal: React.FC<LogInteractionModalProps> = ({
   initialCompanyId,
   onLogInteraction,
 }) => {
-  const [companyId, setCompanyId] = useState(initialCompanyId || (companies[0]?.id || ''));
+  const [companyId, setCompanyId] = useState(initialCompanyId || '');
   const [contactPersonId, setContactPersonId] = useState('');
   const [type, setType] = useState('Status Update');
   const [title, setTitle] = useState('');
@@ -1691,14 +1737,25 @@ export const LogInteractionModal: React.FC<LogInteractionModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   React.useEffect(() => {
-    if (initialCompanyId) setCompanyId(initialCompanyId);
-  }, [initialCompanyId]);
+    if (isOpen) {
+      if (initialCompanyId && companies.some(c => String(c.id) === String(initialCompanyId))) {
+        setCompanyId(String(initialCompanyId));
+      } else if (companies.length > 0) {
+        if (!companyId || !companies.some(c => String(c.id) === String(companyId))) {
+          setCompanyId(String(companies[0].id));
+        }
+      } else {
+        setCompanyId('');
+      }
+      setError('');
+    }
+  }, [isOpen, initialCompanyId, companies]);
 
-  const companyContacts = contacts.filter(c => c.companyId === companyId);
+  const companyContacts = contacts.filter(c => String(c.companyId) === String(companyId));
 
   React.useEffect(() => {
-    if (companyContacts.length > 0 && !contactPersonId) {
-      setContactPersonId(companyContacts[0].id);
+    if (companyContacts.length > 0 && (!contactPersonId || !companyContacts.some(c => String(c.id) === String(contactPersonId)))) {
+      setContactPersonId(String(companyContacts[0].id));
     }
   }, [companyId, companyContacts, contactPersonId]);
 
@@ -1706,6 +1763,10 @@ export const LogInteractionModal: React.FC<LogInteractionModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!companyId || !companyId.trim() || Number(companyId) <= 0) {
+      setError('Please select an associated company.');
+      return;
+    }
     if (!title.trim()) {
       setError('Title / Headline is required.');
       return;

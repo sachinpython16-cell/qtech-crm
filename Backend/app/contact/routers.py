@@ -22,12 +22,18 @@ def create_contact_endpoint(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    if not payload.company_id or payload.company_id <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A valid positive company_id is required.",
+        )
+
     # Verify company exists and belongs to current user
     company = get_company_by_id(db, payload.company_id, current_user.id)
     if not company:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Company not found",
+            detail=f"Company with ID {payload.company_id} does not exist for this account.",
         )
 
     contact = apis.create_contact(db, payload, current_user.id)
